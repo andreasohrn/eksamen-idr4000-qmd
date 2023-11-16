@@ -30,7 +30,7 @@ VO~2maks~testen gjennomføres som en trappetrinnstest der motstanden øker med 2
 
 ### Praktisk gjennomføring/tiltak for å sikre reliabilitet
 
-Selv om en tydelig protokoll er essensielt for å sikre reliable tester på en fysiologilab, er det flere hensyn som må tas underveis. Vi begynte hver test med å kalibrere utstyret slik at det var oppdatert etter forholdene til hver deltaker hver klokketime, for å minimere risikoen for at utstyret skal måle feil [@tannerPhysiologicalTestsElite2013]. For å sikre lik grad av verbal motivasjon og formulering av instruks, valgte v å bruke samme testleder på hver person [@halperin2015]. Vi ha også instrukser om at kosthold og søvn skulle være likt før og på testdagen, samt ingen trening mellom testene da detet er faktorer som kan påvirke metabolisme og prestasjon, dette ble dog ikke kontrollert [@tannerPhysiologicalTestsElite2013].
+Selv om en tydelig protokoll er essensielt for å sikre reliable tester på en fysiologilab, er det flere hensyn som må tas underveis. Vi begynte hver test med å kalibrere utstyret slik at det var oppdatert etter forholdene til hver deltaker hver klokketime, for å minimere risikoen for at utstyret skal måle feil [@tannerPhysiologicalTestsElite2013]. For å sikre lik grad av verbal motivasjon og formulering av instruks, valgte vi å bruke samme testleder på hver person [@halperin2015]. Vi ga også instrukser om at kosthold og søvn skulle være likt før og på testdagen, samt ingen trening mellom testene da detet er faktorer som kan påvirke metabolisme og prestasjon, dette ble dog ikke kontrollert [@tannerPhysiologicalTestsElite2013].
 
 ## Resultater
 
