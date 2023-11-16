@@ -1,9 +1,4 @@
-# Preface {.unnumbered}
+# Forord {.unnumbered}
 
-This is a Quarto book.
-
-To learn more about Quarto books visit <https://quarto.org/docs/books>.
-
-```{r}
-1 + 1
-```
+Se hele repositorien på GitHub:
+<https://github.com/andreasohrn/eksamen-idr4000-qmd.git>.

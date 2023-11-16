@@ -1,0 +1,298 @@
+---
+title: "Analyse av repeterte målinger"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: "setup"
+#| include: false
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(exscidata)
+library(lme4)
+library(emmeans)
+library(pbkrtest)
+library(lmerTest)
+library(gt)
+
+data("strengthvolume")
+data("dxadata")
+
+sub.dxa <- dxadata %>%
+  select(participant:include, lean.left_leg, lean.right_leg) %>%
+  pivot_longer(names_to = "leg", 
+               values_to = "lean.mass", 
+               cols = lean.left_leg:lean.right_leg) %>%
+  mutate(leg = if_else(leg == "lean.left_leg", "L", "R"), 
+         sets = if_else(multiple == leg, "multiple", "single")) %>%
+  select(participant, time, sex, include, sets, leg, lean.mass) %>%
+ print()
+ 
+```
+
+```{r}
+#| echo: false
+#| include: false
+
+sub.str <- strengthvolume %>% 
+  filter(exercise == "legpress",
+         include == "incl",
+         !is.na(load)) %>% 
+ mutate(time = factor(time, levels = c("pre", "session1", "week2", "week5", "week9", "post")),
+         sets = factor(sets, levels = c("single", "multiple")),
+         timec = as.numeric(case_when(time == "pre" ~ 0,
+                                      time == "session1" ~ 0,
+                                      time == "week2" ~ 2,
+                                      time == "week5" ~ 5,
+                                      time == "week9" ~ 9,
+                                      time == "post" ~ 12))) %>% 
+  print()
+```
+
+## Introduksjon
+
+Det er stor enighet om at de største adaptasjonene vi får av å trene tung styrketrening er økt styrke og muskelvekst. For utrente personer kan man forvente å øke maksimal muskelstyrke med 1% i uka, men med variasjoner mellom 0,1 - 3 % [@mcdonagh1984]. Tilsvarende ser det ut til at muskeltverrsnittet kan øke med 0,1 - 0,5 % per økt [@wernbom2007]. Det er mange faktorer som kan påvirke hvor store adaptasjonene blir. Noen grunner til at vi finner så stor spredning i respons kan være bruk av ulike treningsformer, ulikt antall serier og repetisjoner på øktene, og hvilke muskler som blir målt [@tønnessen2018].
+
+Det er mye som tyder på at det er en sammenheng mellom styrketreningsvolum og treningsadaptasjoner [@raastad2010]. Det er likevel stor variasjon i funnene, og det ser ikke ut til at det er noe klar fasit på hvor mye man bør trene for å oppnå gode resultater [@raastad2010]. For utrente personer er det av interesse å undersøke hvor små treningsmengder man kan gjennomføre, og likevel oppnå gunstige resultater. Dette siden tid ofte er mangelvare hos mange mennesker, og trening fort kan bli en nedprioritert aktivitet [@choi2017]. De lærde strides når det kommer til hvor mange serier utrente personer burde trene for mest gunstig effekt. @cannon2010 og @mitchell2012 viser til at økter med lavt volum gir like gode adaptasjoner i styrke og masse som økter med moderat volum. Likevel er det andre større meta-analyser som favoriserer 3 serier over 1 serie [@krieger2009]. Denne diskrepansen kan tyde på at det er store individuelle forskjeller på styrketreningsadaptasjoner. Et forskningsdesign med fokus på intra-individe forskjeller på ulikt treningsvolum, vil kunne være med på å forstå dette tema bedre.
+
+Hensikten med denne studien er å undersøke hvordan effektene en og tre serier påvirker maksimal styrke målt som 1RM beinpress og muskelvekst. Ved at deltakerne trener en serie på det ene beinet og tre serier på det andre kan vi undersøke forskjeller innad i hvert individ.
+
+## Metode
+
+### Deltakere og studiedesign
+
+41 kvinner og menn mellom ble rekrutert til studien, med kriterie om å være mellom 18 og 40, samt ikke-røykende se @tbl-kar. Eksklusjonskriterier var intoleranse til lokal bedøvelse, at man hadde trent mer enn en styrkeøkt i uka i snitt de siste 12 månedene før intervensjonen, reduksjon i muskelstyrke grunnet skader eller sykdom, og hvis man går på medisin som kan påvirke adaptasjoner til styrketrening. Alle deltakerne som fullførte minimum 85% av styrkeøktene ble inkludert i analysen.
+
+Intervensjonen besto av 12 uker med fullkropps styrketrening som ble gjennomført mellom september og november. For å kunne undersøke forskjellene av ulikt treningsvolum innen hver deltaker, ble beinøvelsene gjennomført unilateralt. Beinene til deltakerne ble dermed tilfeldig fordelt til å gjennomføre en serie på det ene beinet, og tre serier på det andre beinet på på hver øvelse. Slik kunne alle deltakerne gjennomføre både 1 og 3 serier. Deltakerne målte muskelstyrke ved baseline, underveis (uke; 3, 5 og 9) og etter intervensjonen. Kroppssammensetningen til deltakerne ble målt rett før og etter treningsintervensjonen.
+
+
+```{r}
+#| label: "tbl-kar"
+#| warning: false
+#| message: false
+#| echo: false
+#| tbl-cap: "Oversikt over de inkluderte deltakerne ved pre-test"
+
+tbl_kar <- dxadata %>% 
+  select(time, age, height, weight, participant, include) %>% 
+  filter(time == "pre",
+         include == "incl") %>% 
+  summarise(N = n(), 
+            Alder = paste(round(mean(age, na.rm = TRUE),2), 
+                        round(sd(age, na.rm = TRUE),2), 
+                        sep = " ± "),
+            Høyde = paste(round(mean(height, na.rm = TRUE),2),
+                        round(sd(height, na.rm = TRUE),2), 
+                        sep = " ± "),
+            Vekt = paste(round(mean(weight, na.rm = TRUE),2), 
+                        round(sd(weight, na.rm = TRUE),2), 
+                        sep = " ± ")) %>% 
+  mutate(N = as.character(N)) %>% 
+  pivot_longer(names_to = "variables",
+               values_to = "values",
+               cols = N:Vekt) %>% 
+  gt() %>% 
+cols_label(variables = "Variabler",
+           values = "Gj.snitt ± SD")
+tbl_kar
+
+  
+
+
+
+```
+
+### Måling av maksimal styrke i beinpress
+
+Maksimal styrke i unilateral beinpress ble definert som en repetisjon-maks (1RM). Før testen ble det gjennomført en spesefikk oppvarming som besto av ti, seks og tre repetisjoner på 50, 75 og 85% av predikert 1RM. Videre ble 1RM målt med å gradvis øke belastningen til forsøkspersonen ikke lenger klarte å gjennomføre øvelsen med fullt bevegelsesutslag. Den tyngste vekten med godkjent gjennomføring ble definert som 1RM. Hver forsøksperson ble gitt fire til seks forsøk.
+
+### DXA
+
+For å måle mager kroppsmasse og generelle kroppssammensetning ble det benyttet dual-energy X-ray absorptiometry (DXA) (Lunar Prodigy, GE Healthcare, Oslo, Norge). Alle deltakerne skulle være fastende i minimum to timer før DXA-målinger for å så nøyaktige målinger som mulig på mager kroppsmasse. Deltakerne skulle også avstå fysisk anstrengende aktivitet den siste tiden før testen.
+
+### Analyse og statistikk
+
+For å undersøke effektene av ulikt treningsvolum på maksimal styrke og økning i muskelmasse benyttet jeg en linear mixed  model (LMM). Ved å bruke LMMs, kan vi sammenligne effektene av ulikt treningsvolum på styrke og muskelmasse, samt undersøke hvordan disse effektene varierer mellom deltakerne og over tid. LMMs ble spesifisert med load/lean mass som avhengig variabel, og med tid og tid til sets-interaksjonen som faste effekter. I tillegg ble modellene spesifisert med random intercepts for hver deltaker. Dette muliggjør estimering av individuelle effekter, slik at vi også kan undersøke hvordan effekten av treningsvolum varierer mellom deltakerne. I modellen for muskelmasse ble det også inkludert en random slope på "time" for å ta hensyn til at det er individuell variasjon i både baseline (skjæringspunktet) og endringshastigheten over tid (stigningstallet). Alle deltakerne som har gjennomført minst 85% av øktene i intervensjonen er inkludert i analysen N = 34.
+
+
+## Resultater
+
+Resultatene viser at både en serie og tre serier øker 1RM i beinpress og muskelveksten i en 12-ukers treningsperiode, se @fig-str og @fig-dxa. Økningen i maksimal styrke ser ikke ut til å komme av forskjeller i antall serier, da vi ikke observerte en effekt mellom de to ulike gruppene i 1RM beinpress. Når det gjelder muskelvekst, ble det observert en større økning i mager kroppsmasse hos gruppen som trente 3 serier, mot gruppen som trente 1 serie se @tbl-koef.
+
+\newpage
+
+```{r}
+#| warning: false
+#| message: false
+#| echo: false
+#| include: false
+
+dxa.dat <- dxadata %>%
+  select(participant:include, lean.left_leg, lean.right_leg) %>%
+        
+        # Extract leg specific data
+  pivot_longer(names_to = "leg", 
+               values_to = "lean.mass", 
+               cols = lean.left_leg:lean.right_leg) %>%
+  mutate(leg = if_else(leg == "lean.left_leg", "L", "R"), 
+         sets = if_else(multiple == leg, "multiple", "single")) %>%
+  select(participant, time, sex, include, sets, leg, lean.mass) %>%
+        # Filter only included participants
+        filter(include == "incl") %>%
+        # Fix time factor 
+        mutate(time = factor(time, levels = c("pre", "post")),
+               sets = factor(sets, levels = c("single", "multiple")))
+
+### Use a mixed model to determine effects of time and condition
+
+lbm.m1 <- lmer(lean.mass ~ time * sets + (1 + time|participant), 
+          data = dxa.dat)
+### make a data frame i can use in a table
+
+tab.lbm <- summary(lbm.m1)$coef %>% 
+  data.frame() %>% 
+   mutate(Koeffisienter = c("Intercept", 
+                           "Tid", 
+                           "Gruppemultiple", 
+                           "Tid:Gruppemultiple")) %>%
+  select(Koeffisienter, Estimate, Std..Error, df, t.value, Pr...t..)
+
+
+
+```
+
+```{r}
+#| warning: false
+#| message: false
+#| echo: false
+#| include: false
+
+### Use a mixed model to determine effects of time and condition
+
+m1_str <- lmer(load ~ timec * sets + (1|participant), data = sub.str) 
+summary(m1_str)
+
+### make a data frame i can use in a table
+
+tab.str <- summary(m1_str)$coef %>% 
+  data.frame() %>% 
+   mutate(Koeffisienter = c("Intercept", 
+                           "Tid", 
+                           "Gruppemultiple", 
+                           "Tid:Gruppemultiple")) %>%
+  select(Koeffisienter, Estimate, Std..Error, df, t.value, Pr...t..)
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: "tbl-koef"
+#| tbl-cap: "Oversikt over effektene av styrketrening med 1 og 3 serier på 1RM beinpress og mager kroppsmasse qnalysert av LMMs. Tid:Gruppemultipple viser til forskjeller av stigningstall mellom gruppene. SE = standardfeil og DF = frihetsgrader."   
+
+### make a table with the info from the statistical test
+
+summary(lbm.m1)$coef %>% 
+  data.frame() %>% 
+   mutate(Koeffisienter = c("Intercept", 
+                           "Tid", 
+                           "Gruppemultiple", 
+                           "Tid:Gruppemultiple")) %>%
+  select(Koeffisienter, Estimate, Std..Error, df, t.value, Pr...t..)%>%
+  full_join(tab.str) %>% 
+  gt() %>% 
+  cols_label(Koeffisienter = md("**Koeffisienter**"),
+             Estimate = md("**Estimat**"),
+             Std..Error = md("**SE**"),
+             df = md("**DF**"),
+             t.value = md("**t.verdi**"),
+             Pr...t.. = md("**p.verdi**")) %>% 
+  fmt_number(columns = Estimate:Pr...t.., decimals = 2) %>% 
+  tab_row_group(label = md("*Fettfri Masse*"), rows = 1:4) %>% 
+  tab_row_group(label = md("*1RM Beinpress*"), rows = 5:8)
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-align: center
+#| label: "fig-str"
+#| fig-cap: "Volumavhengige endringer i 1RM beinpress i uke 0, 2, 5, 9 og 12"
+
+sub.str %>% 
+ group_by(time, sets) %>% 
+  summarise(Mean = mean(load, na.rm = T),
+            SD = sd(load, na.rm = T)) %>% 
+  mutate(timec = as.numeric(case_when(time == "pre" ~ 0,
+                                      time == "session1" ~ 0,
+                                      time == "week2" ~ 2,
+                                      time == "week5" ~ 5,
+                                      time == "week9" ~ 9,
+                                      time == "post" ~ 12))) %>% 
+  ggplot(aes(timec, Mean, group = sets, color = sets)) +
+  geom_line(position = position_dodge(width = 0.7)) +
+  geom_point(position = position_dodge(width = 0.7),
+             size = 3) +
+  geom_errorbar(aes(ymin = Mean - SD, ymax = Mean + SD), 
+                position = position_dodge(width =0.7),
+                width = 0.7) +
+  scale_x_continuous(breaks = seq(0, 16, 1)) +
+  labs(x = "Tid (uker)",
+       y = "1RM Beinpress (kg)",
+       color = "Treningsvolum") +
+  theme_linedraw() +
+  theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank())
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-align: center
+#| label: "fig-dxa"
+#| fig-cap: "Volumavhengig endringer i mager kroppsmasse mellom pre og posttest"
+
+sub.dxa %>% 
+ group_by(time, sets) %>% 
+  summarise(Mean = mean(lean.mass, na.rm = T),
+            SD = sd(lean.mass, na.rm = T)) %>% 
+  mutate(timec = as.numeric(case_when(time == "pre" ~ 0,
+                                      time == "post" ~ 1))) %>% 
+  ggplot(aes(timec, Mean, group = sets, color = sets)) +
+  geom_line(position = position_dodge(width = 0.4)) +
+  geom_point(position = position_dodge(width = 0.4),
+             size = 3) +
+  geom_errorbar(aes(ymin = Mean - SD, ymax = Mean + SD), 
+                position = position_dodge(width =0.4),
+                width = 0.3) +
+  labs(x = "Testing ved pre og post",
+       y = "Mager Kroppsmasse i bein (g)",
+       color = "Treningsvolum") +
+  theme_linedraw() +
+  theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+        axis.text.x = element_blank())
+```
+
+\newpage
+
+## Diskusjon
+
+Resultatene viser til at over en 12 ukers treningsperiode på utrente deltakere gir 1 og 3 serier tilsvarende lik effekt på økning i 1RM beinpress. Hvis vi ser på muskelvekst, tyder det på at tre serier er fordelaktig sammenlignet med en serie. At tre serier er fordelaktig over 1 serie for muskelvekst stemmer overens med større metastudier som sammenligner ulikt treningsvolum [@krieger2009; @schoenfeld2016]. Motstridene til de nevnte studiene, fant ikke den gjeldende studien noen forskjell mellom gruppene når det gjelder styrkeøkning. Dette samsvarer likevel med @cannon2010 og @mitchell2012, som ikke fant en fordel med flere serier på styrke hos utrente. Det er viktig å nevne at deltakerne i denne studien er utrente person, og det kan se ut til at det er viktigere med flere serier jo bedre trent man er [@raastad2010]. Denne studien viser likevel at både 1 og 3 serier gir god progresjon, så hvis tid er mangelvare vil 1 serie gi gunstige resultater om man er på et lavt treningsnivå
+
+
+## Konklusjon
+
+Tallene fra denne studien indikerer at en og tre serier under styrketrening gir tilnærmet lik økning i 1RM beinpress for utrente personer over en 12-ukers periode. Likevel ser vi en større effekt på økning i muskelmasse på tre serier sammenlignet med en. Dette indikerer at for utrente personer er en serie per øvelse tilstrekkelig for å oppnå god progresjon, men tre serier kan være fordelaktig om muskelvekst er målet.
